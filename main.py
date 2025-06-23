@@ -422,8 +422,8 @@ def game():
             self.max_health = 100
             self.health = 100
             self.alive = True
-            self.max_ammo = 100
-            self.ammo = 100
+            self.max_ammo = 45
+            self.ammo = 15
             self.damage = 25
             self.attack_up = 0
             self.key = False
