@@ -4,7 +4,8 @@ from tile import Tile
 from pygame.locals import *
 import random
 
-        # general setup
+
+    # general setup
 pygame.init()
 pygame.display.set_caption("Problematic Chronicles")
 screen = pygame.display.set_mode((WIDTH,HEIGHT))
@@ -22,18 +23,18 @@ shoot_sfx = pygame.mixer.Sound('music/gunshotsfx.mp3')
 songs = ["music/LetItFly.mp3", "music/Drowning.mp3", "music/creepin.mp3"]
 current_song_index = 0
 
-# Load the first song in the songs
+    # Load the first song in the songs
 pygame.mixer.music.load(songs[current_song_index])
 
-# Set volume for songs and sfx
+    # Set volume for songs and sfx
 music_volume = 1
 sfx_volume = 1
 
-# Set the end event for when the current song finishes playing
+    # Set the end event for when the current song finishes playing
 SONG_END = pygame.USEREVENT + 1
 pygame.mixer.music.set_endevent(SONG_END)
 
-# Start playing the current song
+    # Start playing the current song
 pygame.mixer.music.play()
 
 def mainMenu():
@@ -145,6 +146,15 @@ def options():
     global shoot_sfx
     running = True
     click = False
+
+        # button to change song
+    next_song_button = pygame.Surface((60,52))
+    next_song_button.set_alpha(40)
+    next_song_rect = next_song_button.get_rect(topleft = ((screen.get_width()//2) + 180, (screen.get_height()//2) - 144))
+    next_song_button2 = pygame.Surface((60,52)) 
+    next_song_button2.set_alpha(0)
+    next_song2_rect = next_song_button2.get_rect(topleft = ((screen.get_width()//2) + 292, (screen.get_height()//2) - 144))
+
         # buttons to change volume
     music_button = pygame.Surface((60,52))
     music_button.set_alpha(40)
@@ -188,6 +198,18 @@ def options():
             pygame.draw.rect(screen, (230,230,230), music_volume_bar)
             pygame.draw.rect(screen, (230,230,230), sfx_volume_bar)
             time1 = 0
+
+        if next_song_rect.collidepoint(mx, my):
+            if click:
+                current_song_index = (current_song_index - 1) % len(songs)
+                pygame.mixer.music.load(songs[current_song_index])
+                pygame.mixer.music.play()
+        
+        if next_song2_rect.collidepoint(mx, my):
+            if click:
+                current_song_index = (current_song_index + 1) % len(songs)
+                pygame.mixer.music.load(songs[current_song_index])
+                pygame.mixer.music.play()
         
         if mbutton_rect.collidepoint(mx, my):
             if click:
@@ -489,7 +511,7 @@ def game():
 
             for enemies in enemy_group:
                 if pygame.sprite.collide_rect(self, enemies):
-                    self.health -= 0.25
+                    self.health -= 0.25 * difficulty
             if pygame.sprite.spritecollide(self, boss_group, False):
                 self.health -= 0.75
 
@@ -537,12 +559,13 @@ def game():
             self.images.append(pygame.image.load('mainSprites/enemy1.png').convert_alpha())
             self.images.append(pygame.image.load('mainSprites/enemy2.png').convert_alpha())
             self.image = self.images[self.current_image]
-            self.rect = self.image.get_rect(topleft = pos)
+            self.rect = self.image.get_rect(topleft=pos)
             self.direction = pygame.math.Vector2()
             self.speed = 4
+            self.moving = False
 
             self.max_health = 100
-            self.health = 100
+            self.health = self.max_health
             self.alive = True
 
             self.obstacles = obstacles
@@ -558,12 +581,16 @@ def game():
             else: 
                 self.direction = pygame.math.Vector2()
 
-            self.rect.x += self.direction.x * speed
-            self.collision('horizontal')
-            self.rect.y += self.direction.y * speed
-            self.collision('vertical') 
+            if distance <= 350:
+                self.moving = True
+                self.rect.x += self.direction.x * speed
+                self.collision('horizontal')
+                self.rect.y += self.direction.y * speed
+                self.collision('vertical')
+            else:
+                self.moving = False
 
-        def collision(self,direction):
+        def collision(self, direction):
             if direction == 'horizontal':
                 for sprite in self.obstacles:
                     if sprite.rect.colliderect(self.rect):
@@ -571,7 +598,7 @@ def game():
                             self.rect.right = sprite.rect.left
                         if self.direction.x < 0:
                             self.rect.left = sprite.rect.right
-            
+        
             if direction == 'vertical':
                 for sprite in self.obstacles:
                     if sprite.rect.colliderect(self.rect):
@@ -582,17 +609,12 @@ def game():
 
         def update(self):
             self.move(self.speed, self.image)
-            self.image = self.images[int(self.current_image)]
-            self.current_image += 0.05
-            if self.current_image >= len(self.images):
-                self.current_image = 0
-            self.image = self.images[int(self.current_image)]
 
-            if self.health <= 0 :
+            if self.health <= 0:
                 self.alive = False
                 if player.attack_up != 10:
                     player.attack_up += 0.5
-                    player.damage += 7.5/2
+                    player.damage += 7.5 / 2
                     player.kills += 1
                 self.kill()
 
@@ -741,10 +763,19 @@ def game():
                 self.surface.blit(sprite.image, offsetPos)
 
             for enemies in enemy_group:
-                health_rect = pygame.Rect((enemies.rect.x - self.offset.x) - 1, (enemies.rect.y - self.offset.y)- 10, enemies.health // 2, 5)
-                health_border = pygame.Rect((enemies.rect.x -self.offset.x) - 3, (enemies.rect.y -self.offset.y) - 12, (enemies.max_health // 2) + 4, 9)
-                pygame.draw.rect(screen, ('black'), health_border)
-                pygame.draw.rect(screen, ('red'), health_rect)
+                # Calculate the health bar position dynamically
+                health_rect = pygame.Rect(
+                    enemies.rect.centerx - (enemies.max_health // 4) - self.offset.x,  # Fixed left side
+                    enemies.rect.top - 10 - self.offset.y,  # Position above the enemy
+                    (enemies.health / enemies.max_health) * (enemies.max_health // 2),  # Width proportional to health
+                    5)
+                health_border = pygame.Rect(
+                    enemies.rect.centerx - (enemies.max_health // 4) - self.offset.x - 2,  # Fixed left side
+                    enemies.rect.top - 12 - self.offset.y,  # Position above the enemy
+                    (enemies.max_health // 2) + 4,  # Fixed width for the border
+                    9)
+                pygame.draw.rect(screen, ('black'), health_border)  # Draw the border of the health bar
+                pygame.draw.rect(screen, ('red'), health_rect)     # Draw the actual health bar
             if boss.alive and boss_spawn:
                 boss_border = pygame.Rect((screen.get_width()//2)- 405, (screen.get_height() - 90), boss.max_health + 10, 28)
                 boss_health = pygame.Rect((screen.get_width()//2)- 400, (screen.get_height() - 86), boss.health, 20)
@@ -848,18 +879,8 @@ def game():
 
     player = Player((206, 1732), [visible_group, player_group], obstacle_group)
     boss = Boss((3208, 182), [boss_group], obstacle_group)
-
-    def enemies():
-        e1 = Enemy((3*64, 3*64), [visible_group, enemy_group], obstacle_group)
-        e2 = Enemy((5*64, 3*64), [visible_group, enemy_group], obstacle_group)
-        e3 = Enemy((14*64, 3*64), [visible_group, enemy_group], obstacle_group)
-        e4 = Enemy((16*64, 3*64), [visible_group, enemy_group], obstacle_group)
-        e5 = Enemy((26*64, 24*64), [visible_group, enemy_group], obstacle_group)
-        e6 = Enemy((28*64, 24*64), [visible_group, enemy_group], obstacle_group)
-        e7 = Enemy((56*64, 29*64), [visible_group, enemy_group], obstacle_group)
-        e8 = Enemy((58*64, 29*64), [visible_group, enemy_group], obstacle_group)
-
     pos = 3136
+
         # HUD
     msc_border = pygame.image.load('mainPictures/msc_border.png').convert_alpha()
     msc_border = pygame.transform.scale(msc_border, (203, 133))
@@ -872,14 +893,63 @@ def game():
     boss_music = False
     cloak_spawn = False
     key_spawn = False
-    enemy_spawn = False
-    enemy_spawn_flag = False
     shoot_time = 10
 
-    while running:
+        # difficulty
+    difficulty_timer = 0
+    difficulty_level = 0
+    difficulty = 1
 
+        # enemy spawns
+    def enemies():
+        enemy_positions = [
+            (3*64, 3*64), (5*64, 3*64), (14*64, 3*64), (16*64, 3*64),
+            (26*64, 24*64), (28*64, 24*64), (56*64, 29*64), (58*64, 29*64)
+        ]
+        for pos in enemy_positions:
+            enemy = Enemy(pos, [visible_group, enemy_group], obstacle_group)
+
+    def check_enemies_alive():
+        alive = 0
+        for enemy in enemy_group:
+            if enemy.alive:
+                alive += 1
+            else:
+                enemy_group.remove(enemy)
+        return alive
+    
+    def enemy_spawn():
+        if len(enemy_group) == 0:
+            enemies()
+            return True
+        if check_enemies_alive() < 1:
+            enemies()
+            return True
+        return False
+
+        # stronger enemies
+    def stronger_enemies():
+        for enemy in enemy_group:
+            if enemy.alive:
+                enemy.max_health *= difficulty
+                enemy.health *= difficulty
+                enemy.speed *= difficulty
+        
+        ####################### RUNNING THE GAME ########################
+    while running:
         screen.fill(bg_colour)
-        print(player.kills)
+
+            # difficulty
+        if difficulty_level < 7:
+            difficulty_timer += 1
+            if difficulty_timer >= 1080:  # Increase difficulty every 18 seconds
+                difficulty = 1.1
+                difficulty_level += 1
+                difficulty_timer = 0
+                stronger_enemies()
+                test = enemy_group.sprites()[0].health
+                print('Difficulty increased to:', difficulty, 'Enemy max health:', test)
+
             # Boss spawn
         if player.rect.x > 2368 and player.rect.y < 900 and not boss_spawn:    
             visible_group.add(boss)
@@ -911,16 +981,7 @@ def game():
             key_spawn = True
             pygame.mixer.music.stop()
 
-        if not enemy_spawn:
-            enemies()
-            enemy_spawn = True
-            enemy_spawned_for_kills = True
-
-        if enemy_spawn:
-            if len(enemy_group) == 0 or (player.kills % 6 == 0 and player.kills != 0 and not enemy_spawned_for_kills):
-                enemy_spawn = False
-                enemy_spawned_for_kills = False
-
+        enemy_spawn()
 
         bullet_group.custDraw(player)
         bullet_group.update()
@@ -1058,10 +1119,14 @@ def math_page():
     db_rect = dark_border.get_rect()
     book = pygame.image.load('mainPictures/book.png').convert_alpha()
     book_rect = book.get_rect(center = (screen.get_width()//2, screen.get_height()//2))
+
+        # variables
     time1 = 50
     time2 = 60
     user_text = ''
     input_rect = pygame.Rect(800, (screen.get_height()//2) - 25, 1, 1)
+    question_timer = 5 * 60
+    max_timer = 5 * 60
 
     def generate_question():
         # Generate random arithmetic question
@@ -1082,6 +1147,24 @@ def math_page():
         
         return question, str(result)
     
+    def correct():
+        global add_bullets
+        global reduce_health
+        if player.health != player.max_health:
+            player.health += 5
+        else:
+            player.health = player.max_health
+        add_bullets += 3
+        screen.blit(correct_tick, (1030,(screen.get_height()//2) - 25))
+
+    def wrong():
+        global reduce_health
+        if player.health <= 0:
+            running = False
+        else:
+            player.health -= 5
+        screen.blit(wrong_x, (1030, (screen.get_height()//2) - 25))
+
     questions, answer = generate_question()
 
         # HUD
@@ -1110,6 +1193,7 @@ def math_page():
                 pygame.mixer.music.play()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    player.health -= 5
                     running = False
                 if event.key == pygame.K_BACKSPACE:
                     user_text = user_text[:-1]
@@ -1117,21 +1201,22 @@ def math_page():
                     user_text += event.unicode
                 if event.unicode == '\r':
                     if user_text == answer:
-                        if player.health != player.max_health:
-                            player.health += 5
-                        else:
-                            player.health = player.max_health
-                        add_bullets += 3
-                        screen.blit(correct_tick, (1030,(screen.get_height()//2) - 25))
+                        correct()
                         questions, answer = generate_question()
+                        question_timer = 5 * 60
                     else:
-                        if player.health <= 0:
-                            running = False
-                        else:
-                            player.health -= 5
-                        screen.blit(wrong_x, (1030, (screen.get_height()//2) - 25))
+                        wrong()
                         questions, answer = generate_question()
+                        question_timer = 5 * 60
                     user_text = ''
+
+        question_timer -= 1
+        if question_timer <= 0:
+            wrong()
+            questions, answer = generate_question()
+            question_timer = 5 * 60  # Reset timer
+            user_text = ''
+        
             # render random questions            
         question = base_font.render(questions, True, ('black'))
         time2 -= 1
@@ -1142,6 +1227,9 @@ def math_page():
             pygame.draw.rect(screen, (230, 209, 166), input_rect)
             screen.blit(text_surface, (input_rect.x +5, input_rect.y -5))
             time2 =0
+
+        # render timer
+        timer_rect = pygame.Rect(0, 0, screen.get_width(), 10)
         
             # HUD
         bullets = player.ammo + add_bullets
