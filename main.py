@@ -1125,8 +1125,7 @@ def math_page():
     time2 = 60
     user_text = ''
     input_rect = pygame.Rect(800, (screen.get_height()//2) - 25, 1, 1)
-    question_timer = 5 * 60
-    max_timer = 5 * 60
+    question_timer = 10 * 60
 
     def generate_question():
         # Generate random arithmetic question
